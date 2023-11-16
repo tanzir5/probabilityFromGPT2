@@ -5,6 +5,8 @@ import pandas as pd
 import torch
 import json
 from tqdm import tqdm
+from torch.utils.data import DataLoader, TensorDataset
+
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -68,7 +70,21 @@ def get_probability(prefixes, gen_texts, tokenizer, model):
     prefix + "\n" + " ".join(gen_text.split()[:-5]) for prefix, gen_text in zip(prefixes, gen_texts)
   ]
   encoded_inputs = tokenizer(texts, return_tensors='pt', padding=True).to(DEVICE)
-  scores = model(**encoded_inputs)['logits']
+  # Create DataLoader for batching
+  batch_size = 2
+  dataset = torch.utils.data.TensorDataset(encoded_inputs['input_ids'], encoded_inputs['attention_mask'])
+  dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+  scores = []
+  with torch.no_grad():
+      for batch in dataloader:
+          input_ids, attention_mask = batch
+          input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
+          tmp_scores = model(input_ids=input_ids, attention_mask=attention_mask)['logits']
+          scores.append(tmp_scores)
+
+  # Concatenate the scores from all batches
+  scores = torch.cat(scores, dim=0)
+  #scores = model(**encoded_inputs)['logits']
   lengths = [
     torch.sum(attention_mask).item() 
     for attention_mask in encoded_inputs['attention_mask']
@@ -98,7 +114,7 @@ def get_probability(prefixes, gen_texts, tokenizer, model):
     )
     #print("log_exp_sum", log_exp_sum.shape, log_exp_sum[0])
     gen_length = n - gen_start_indices[batch_idx]
-    print(gen_length, len(c), len(log_exp_sum))
+    #print(gen_length, len(c), len(log_exp_sum))
     assert(gen_length == len(c) == len(log_exp_sum))
     #print("c:",c)
     #print("sum of log_exp_sum", np.sum(log_exp_sum))
@@ -117,6 +133,7 @@ if __name__ == '__main__':
   prefixes, gen_texts = get_texts(permute=False)
   prefixes_random, gen_texts_random = get_texts(permute=True)
   tokenizer, model = get_tokenizer_model()
+  model.eval()
   real_probabilities = get_probability(prefixes, gen_texts, tokenizer, model)
   random_probabilities = get_probability(prefixes_random, gen_texts_random, tokenizer, model)
   with open('probability.json', 'w') as file:
