@@ -67,7 +67,7 @@ def get_gen_start_idx(prefixes, tokenizer):
 
 def get_probability(prefixes, gen_texts, tokenizer, model):
   texts = [
-    prefix + "\n" + " ".join(gen_text.split()[:-1]) for prefix, gen_text in zip(prefixes, gen_texts)
+    prefix + "\n" + " ".join(gen_text.split()[3:]) for prefix, gen_text in zip(prefixes, gen_texts)
   ]
   encoded_inputs = tokenizer(texts, return_tensors='pt', padding=True).to(DEVICE)
   # Create DataLoader for batching
