@@ -22,7 +22,7 @@ def get_texts(permute=False):
   def count_words(text):
     return len(text.split())
   df = pd.read_csv('aligned.csv')
-  df = df[:5]
+  #df = df[:5]
   mask_column1 = df['prompt'].apply(count_words) >= 10
   mask_column2 = df['gen_text'].apply(count_words) >= 3
   df = df[mask_column1 & mask_column2]
